@@ -7,7 +7,7 @@ class UserGetSerializer(ModelSerializer):
         model=User
         fields=['username', 'email']
 
-class UserSerializer(ModelSerializer):
+class RegisterSerializer(ModelSerializer):
     class Meta:
         model=User
         fields=['username', 'email', 'first_name', 'last_name', 'password']
