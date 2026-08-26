@@ -8,8 +8,11 @@ from django.db.models import Q
 from rest_framework.response import Response
 from django.core.cache import cache
 from .tasks import OtpCreateTask
+from config.throttle import RegistrationThrottle
+from rest_framework.permissions import IsAuthenticated
 
 class RegisterAPI(APIView):
+    throttle_classes=[RegistrationThrottle]
     def post(self, request):
         serial=RegisterSerializer(data=request.data)
         if serial.is_valid():
@@ -29,6 +32,7 @@ class RegisterAPI(APIView):
         return Response(serial.errors, status=400)
 
 class OtpVerificationAPI(APIView):
+    throttle_classes=[RegistrationThrottle]
     def post(self, request, username):
         serial=OtpVerificationSerializer(data=request.data)
         if serial.is_valid():
@@ -45,6 +49,7 @@ class OtpVerificationAPI(APIView):
 
 
 class MyProfileAPI(RetrieveUpdateAPIView):
+    permission_classes=[IsAuthenticated]
     serializer_class=ProfileSerializer
 
     def get_object(self):
