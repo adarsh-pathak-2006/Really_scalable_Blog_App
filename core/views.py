@@ -5,7 +5,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.core.cache import cache
 from authentication.models import Profile
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 
 class AllBlogAPI(APIView):
     def get(self, request):
@@ -87,6 +87,10 @@ class MyBlogsDetailAPI(APIView):
         return Response(status=204)                
 
 class CommentAPI(APIView):
+    def get_permissions(self):
+        if self.request.method=='POST':
+            return [IsAuthenticated()]
+        return [AllowAny()]
     def get(self, request, pk):
         cached_data=cache.get(f"comments_on_blogid:{pk}")
         if cached_data:
