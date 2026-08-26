@@ -1,4 +1,5 @@
 from rest_framework.serializers import ModelSerializer
+from rest_framework import serializers
 from ..core.models import Profile
 from django.contrib.auth.models import User
 
@@ -23,3 +24,6 @@ class ProfileSerializer(ModelSerializer):
         model=Profile
         fields='__all__'
         read_only_fields=['user', 'created_on']
+
+class OtpVerificationSerializer(serializers.Serializer):
+    otp=serializers.CharField()

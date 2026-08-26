@@ -8,5 +8,5 @@ from django.shortcuts import get_object_or_404
 def OtpCreateTask(username):
     otp=random.randint(100000, 999999)
     user_data=get_object_or_404(User, username=username)
-    cache.set(f"otp_for_user:{user_data.id}", otp, timeout=500)
+    cache.set(f"otp_for_user:{user_data.id}", str(otp), timeout=500)
     return f"otp created for username: {username}, otp: {otp}"
