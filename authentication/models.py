@@ -2,7 +2,7 @@ from django.db import models
 from django.contrib.auth.models import User
 
 class Profile(models.Model):
-    user=models.ForeignKey(User, on_delete=models.CASCADE)
+    user=models.OneToOneField(User, on_delete=models.CASCADE)
     name=models.CharField()
     profile_picture=models.ImageField(upload_to='pfps/', null=True)
     bio=models.TextField()
