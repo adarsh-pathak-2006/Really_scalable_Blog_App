@@ -8,8 +8,15 @@ from django.db.models import Q
 from rest_framework.response import Response
 from django.core.cache import cache
 from .tasks import OtpCreateTask
-from config.throttle import RegistrationThrottle
+from config.throttle import RegistrationThrottle, TokenObtainThrottle, TokenRefreshThrottle
 from rest_framework.permissions import IsAuthenticated
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+
+class CustomTokenObtainView(TokenObtainPairView):
+    throttle_classes=[TokenObtainThrottle]
+
+class CustomTokenRefreshView(TokenRefreshView):
+    throttle_classes=[TokenRefreshThrottle]
 
 class RegisterAPI(APIView):
     throttle_classes=[RegistrationThrottle]
