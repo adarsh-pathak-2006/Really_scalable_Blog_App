@@ -85,3 +85,25 @@ class MyBlogsDetailAPI(APIView):
         cache.delete(f"blogs_profileid:{profile_data.id}")
         cache.delete(f"blogs_profileid:{profile_data.id}_{pk}")
         return Response(status=204)                
+
+class CommentAPI(APIView):
+    def get(self, request, pk):
+        cached_data=cache.get(f"comments_on_blogid:{pk}")
+        if cached_data:
+            return Response(cached_data, status=200)
+        blog_data=get_object_or_404(Blog, id=pk)
+        profile_data=get_object_or_404(Profile, user=request.user)
+        data=Comment.objects.filter(blog=blog_data, user=profile_data)
+        serial=CommentSerializer(data, many=True)
+        cache.set(f"comments_on_blogid:{pk}", serial.data, timeout=300)
+        return Response(serial.data, status=200)
+
+    def post(self, request, pk):
+        serial=CommentSerializer(data=request.data)
+        if serial.is_valid():
+            blog_data=get_object_or_404(Blog, id=pk)
+            profile_data=get_object_or_404(Profile, user=request.user)
+            serial.save(blog=blog_data, user=profile_data)
+            cache.delete(f"comments_on_blogid:{pk}")
+            return Response(serial.data, status=201)
+        return Response(serial.errors, status=400)        
