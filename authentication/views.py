@@ -27,12 +27,9 @@ class RegisterAPI(APIView):
             email=serial.validated_data['email']
             first_name=serial.validated_data['first_name']
             last_name=serial.validated_data['last_name']
-
-            if User.objects.filter(Q(username=username) | Q(email=email)).exists():
-                return Response({'message':'username  or email already exists'}, status=400)
-            cache.set(f"session_cache_{username}", {'username':username, 'email':email, 'first_name':first_name, 'last_name':last_name}, timeout=800)
+            cache.set(f"session_cache_username:{username}", {'username':username, 'email':email, 'first_name':first_name, 'last_name':last_name}, timeout=300) 
             OtpCreateTask.delay(username=username)
-            return redirect('otp_verification')
+            return Response({'message':'otp is generated..enter the correct otp to move ahead'}, status=201)
         return Response(serial.errors, status=400)
 
 class OtpVerificationAPI(APIView):
@@ -43,22 +40,13 @@ class OtpVerificationAPI(APIView):
             otp=serial.validated_data['otp']
             generated_otp=cache.get(f"otp_for_user:{username}")
             if otp==generated_otp:
-                return Response({'message':'otp verification successfull'}, status=201)
-            user_data=cache.get(f"session_cache_{username}")
-            cache.delete(f"session_cache_{user_data.username}")
-            return Response({'failed':'you entered incorrect OTP..try registration again'}, status=400)
+                return Response({'message':'otp_verified'}, status=200)
+            return Response({'message':'wrong otp entered..retry'}, status=400)
         return Response(serial.errors, status=400)
-
+   
 class PasswordSetupAPI(APIView):
-    def post(self, request, username):
-        serial=PasswordSetupSerializer(data=request.data)
-        if serial.is_valid():
-            password=serial.validated_data['password']
-            cached_session=cache.get(f"session_cache_{username}")
-            user=User.objects.create_user(username=cached_session.get('username'), email=cached_session.get('email'), first_name=cached_session.get('first_name'), last_name=cached_session.get('last_name'), password=password)
-            Profile.objects.create(user=user)
-            return Response({'message':'user registered'}, status=201)
-        return Response(serial.errors, status=400)
+    def post(self, request):
+        
         
 class MyProfileAPI(RetrieveUpdateAPIView):
     permission_classes=[IsAuthenticated]
