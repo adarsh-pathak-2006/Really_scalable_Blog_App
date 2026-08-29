@@ -37,26 +37,25 @@ class RegisterAPI(APIView):
 
 class OtpVerificationAPI(APIView):
     throttle_classes=[RegistrationThrottle]
-    def post(self, request, pk):
+    def post(self, request, username):
         serial=OtpVerificationSerializer(data=request.data)
         if serial.is_valid():
             otp=serial.validated_data['otp']
-            generated_otp=cache.get(f"otp_for_user:{pk}")
+            generated_otp=cache.get(f"otp_for_user:{username}")
             if otp==generated_otp:
                 return Response({'message':'otp verification successfull'}, status=201)
-            user_data=get_object_or_404(User, id=pk)
+            user_data=cache.get(f"session_cache_{username}")
             cache.delete(f"session_cache_{user_data.username}")
             return Response({'failed':'you entered incorrect OTP..try registration again'}, status=400)
         return Response(serial.errors, status=400)
 
 class PasswordSetupAPI(APIView):
-    def post(self, request, pk):
+    def post(self, request, username):
         serial=PasswordSetupSerializer(data=request.data)
         if serial.is_valid():
             password=serial.validated_data['password']
-            user_data=get_object_or_404(User, id=pk)
-            cached_session=cache.get(f"session_cache_{user_data.username}")
-            user=User.objects.create_user(username=cached_session.get('username'), email=cached_session.get('email'), first_name=cached_session.get('email'), last_name=cached_session.get('last_name'), password=password)
+            cached_session=cache.get(f"session_cache_{username}")
+            user=User.objects.create_user(username=cached_session.get('username'), email=cached_session.get('email'), first_name=cached_session.get('first_name'), last_name=cached_session.get('last_name'), password=password)
             Profile.objects.create(user=user)
             return Response({'message':'user registered'}, status=201)
         return Response(serial.errors, status=400)
