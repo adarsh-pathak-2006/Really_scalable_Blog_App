@@ -47,10 +47,10 @@ class OtpVerificationAPI(APIView):
             user_data=get_object_or_404(User, username=username)
             generated_otp=cache.get(f"otp_for_user:{user_data.id}")
             if otp==generated_otp:
-                cached_session=cache.get(f"session_cache_{username}")
-                user=User.objects.create_user(username=cached_session.get('username'), email=cached_session.get('email'), first_name=cached_session.get('email'), last_name=cached_session.get('last_name'), password=cached_session.get('password'))
-                Profile.objects.create(user=user)
-                return Response({'message':'user registration successfull'}, status=201)
+                # cached_session=cache.get(f"session_cache_{username}")
+                # user=User.objects.create_user(username=cached_session.get('username'), email=cached_session.get('email'), first_name=cached_session.get('email'), last_name=cached_session.get('last_name'), password=cached_session.get('password'))
+                # Profile.objects.create(user=user)
+                return Response({'message':'otp verification successfull'}, status=201)
             cache.delete(f"session_cache_{username}")
             return Response({'failed':'you entered incorrect OTP..try registration again'}, status=400)
 
