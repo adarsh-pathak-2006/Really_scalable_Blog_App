@@ -31,7 +31,7 @@ class RegisterAPI(APIView):
 
             if User.objects.filter(Q(username=username) | Q(email=email)).exists():
                 return Response({'message':'username  or email already exists'}, status=400)
-            cache.set(f"session_cache_{username}", {'username':username, 'email':email, 'first_name':first_name, 'last_name':last_name, 'password':password}, timeout=800)
+            cache.set(f"session_cache_{username}", {'username':username, 'email':email, 'first_name':first_name, 'last_name':last_name}, timeout=800)
             OtpCreateTask.delay(username=username)
             # user=User.objects.create_user(username=username, email=email, first_name=first_name, last_name=last_name, password=password)
             # Profile.objects.create(user=user)
