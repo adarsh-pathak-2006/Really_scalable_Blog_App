@@ -11,7 +11,7 @@ class UserGetSerializer(ModelSerializer):
 class RegisterSerializer(ModelSerializer):
     class Meta:
         model=User
-        fields=['username', 'email', 'first_name', 'last_name']
+        fields=['username', 'email', 'first_name', 'last_name', 'password']
 
 class ProfileGetSerializer(ModelSerializer):
     user=UserGetSerializer(read_only=True)
@@ -24,9 +24,3 @@ class ProfileSerializer(ModelSerializer):
         model=Profile
         fields='__all__'
         read_only_fields=['user', 'created_on']
-
-class OtpVerificationSerializer(serializers.Serializer):
-    otp=serializers.CharField()
-
-class PasswordSetupSerializer(serializers.Serializer):
-    password=serializers.CharField()
