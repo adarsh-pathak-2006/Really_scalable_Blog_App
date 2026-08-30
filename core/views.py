@@ -2,112 +2,89 @@ from django.shortcuts import get_object_or_404
 from .models import Blog, Comment
 from .serializers import BlogSerializer, CommentSerializer
 from rest_framework.views import APIView
+from rest_framework.generics import ListAPIView
 from rest_framework.response import Response
-from django.core.cache import cache
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_page
 from authentication.models import Profile
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.pagination import PageNumberPagination
 
-class AllBlogAPI(APIView):
-    def get(self, request):
-        cached_data=cache.get("all_blogs")
-        if cached_data:
-            return Response(cached_data, status=200)
-        data=Blog.objects.all()
-        serial=BlogSerializer(data, many=True)
-        cache.set("all_blogs", serial.data, timeout=300)
-        return Response(serial.data, status=200)
+class AllBlogAPI(ListAPIView):
+    queryset = Blog.objects.select_related('user__user').all()
+    serializer_class = BlogSerializer
+
+    @method_decorator(cache_page(300))
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
 
 class AllBlogsIndividualAPI(APIView):
     def get(self, request, pk):
-        cached_data=cache.get(f"all_blogs_{pk}")
-        if cached_data:
-            return Response(cached_data, status=200)
-        data=get_object_or_404(Blog, id=pk)
-        serial=BlogSerializer(data)
-        cache.set(f"all_blogs_{pk}", serial.data, timeout=300)
+        data = get_object_or_404(Blog.objects.select_related('user__user'), id=pk)
+        serial = BlogSerializer(data)
         return Response(serial.data, status=200)
 
-class MyBlogsAPI(APIView):
-    permission_classes=[IsAuthenticated]
-    def get(self, request):
-        profile_data=get_object_or_404(Profile, user=request.user)
-        cached_data=cache.get(f"blogs_profileid:{profile_data.id}")
-        if cached_data:
-            return Response(cached_data, status=200)
-        data=Blog.objects.filter(user=profile_data)
-        serial=BlogSerializer(data, many=True)
-        cache.set(f"blogs_profileid:{profile_data.id}", serial.data, timeout=300)
-        return Response(serial.data, status=200)
+class MyBlogsAPI(ListAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = BlogSerializer
+
+    def get_queryset(self):
+        profile_data = get_object_or_404(Profile, user=self.request.user)
+        return Blog.objects.select_related('user__user').filter(user=profile_data)
 
 class BlogCreateAPI(APIView):
-    permission_classes=[IsAuthenticated]
+    permission_classes = [IsAuthenticated]
     def post(self, request):
-        serial=BlogSerializer(data=request.data)
+        serial = BlogSerializer(data=request.data)
         if serial.is_valid():
-            profile_data=get_object_or_404(Profile, user=request.user)
+            profile_data = get_object_or_404(Profile, user=request.user)
             serial.save(user=profile_data)
-            cache.delete("all_blogs")
-            cache.delete(f"blogs_profileid:{profile_data.id}")
             return Response(serial.data, status=201)
         return Response(serial.errors, status=400)
 
 class MyBlogsDetailAPI(APIView):
-    permission_classes=[IsAuthenticated]
+    permission_classes = [IsAuthenticated]
     def get(self, request, pk):
-        profile_data=get_object_or_404(Profile, user=request.data)
-        cached_data=cache.get(f"blogs_profileid:{profile_data.id}_{pk}")
-        if cached_data:
-            return Response(cached_data, status=200)
-        data=get_object_or_404(Blog, user=profile_data, id=pk)
-        serial=BlogSerializer(data)
-        cache.set(f"blogs_profileid:{profile_data.id}_{pk}", serial.data, timeout=300)
+        profile_data = get_object_or_404(Profile, user=request.user)
+        data = get_object_or_404(Blog.objects.select_related('user__user'), user=profile_data, id=pk)
+        serial = BlogSerializer(data)
         return Response(serial.data, status=200)
  
     def put(self, request, pk):
-        profile_data=get_object_or_404(Profile, user=request.user)
-        instance=get_object_or_404(Blog, id=pk, user=profile_data)
-        serial=BlogSerializer(instance, data=request.data, partial=True)
+        profile_data = get_object_or_404(Profile, user=request.user)
+        instance = get_object_or_404(Blog, id=pk, user=profile_data)
+        serial = BlogSerializer(instance, data=request.data, partial=True)
         if serial.is_valid():
             serial.save()
-            cache.delete(f"all_blogs_{pk}")
-            cache.delete("all_blogs")
-            cache.delete(f"blogs_profileid:{profile_data.id}")
-            cache.delete(f"blogs_profileid:{profile_data.id}_{pk}")
             return Response(serial.data, status=200)
         return Response(serial.errors, status=400)
 
     def delete(self, request, pk):
-        profile_data=get_object_or_404(Profile, user=request.user)
-        instance=get_object_or_404(Blog, id=pk, user=profile_data)
+        profile_data = get_object_or_404(Profile, user=request.user)
+        instance = get_object_or_404(Blog, id=pk, user=profile_data)
         instance.delete()
-        cache.delete(f"all_blogs_{pk}")
-        cache.delete("all_blogs")
-        cache.delete(f"blogs_profileid:{profile_data.id}")
-        cache.delete(f"blogs_profileid:{profile_data.id}_{pk}")
         return Response(status=204)                
 
 class CommentAPI(APIView):
     def get_permissions(self):
-        if self.request.method=='POST':
+        if self.request.method == 'POST':
             return [IsAuthenticated()]
         return [AllowAny()]
+        
     def get(self, request, pk):
-        cached_data=cache.get(f"comments_on_blogid:{pk}")
-        if cached_data:
-            return Response(cached_data, status=200)
-        blog_data=get_object_or_404(Blog, id=pk)
-        profile_data=get_object_or_404(Profile, user=request.user)
-        data=Comment.objects.filter(blog=blog_data, user=profile_data)
-        serial=CommentSerializer(data, many=True)
-        cache.set(f"comments_on_blogid:{pk}", serial.data, timeout=300)
-        return Response(serial.data, status=200)
+        blog_data = get_object_or_404(Blog, id=pk)
+        data = Comment.objects.select_related('user__user', 'blog').filter(blog=blog_data)
+        
+        paginator = PageNumberPagination()
+        result_page = paginator.paginate_queryset(data, request)
+        serial = CommentSerializer(result_page, many=True)
+        return paginator.get_paginated_response(serial.data)
 
     def post(self, request, pk):
-        serial=CommentSerializer(data=request.data)
+        serial = CommentSerializer(data=request.data)
         if serial.is_valid():
-            blog_data=get_object_or_404(Blog, id=pk)
-            profile_data=get_object_or_404(Profile, user=request.user)
+            blog_data = get_object_or_404(Blog, id=pk)
+            profile_data = get_object_or_404(Profile, user=request.user)
             serial.save(blog=blog_data, user=profile_data)
-            cache.delete(f"comments_on_blogid:{pk}")
             return Response(serial.data, status=201)
-        return Response(serial.errors, status=400)        
+        return Response(serial.errors, status=400)
